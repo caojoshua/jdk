@@ -279,7 +279,7 @@ public class CtwRunner {
                 "-DCompileTheWorldStartAt=" + classStart,
                 "-DCompileTheWorldStopAt=" + classStop,
                 // CTW library uses WhiteBox API
-                "-XX:+WhiteBoxAPI", "-Xbootclasspath/a:wb.jar",
+                "-XX:+WhiteBoxAPI", "-Xbootclasspath/a:.",
                 // export jdk.internal packages used by CTW library
                 "--add-exports", "java.base/jdk.internal.jimage=ALL-UNNAMED",
                 "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
