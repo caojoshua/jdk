@@ -62,8 +62,7 @@ CTW_MAIN_CLASS = sun.hotspot.tools.ctw.CompileTheWorld
 CTWRUNNER_MAIN_CLASS = sun.hotspot.tools.ctw.CtwRunner
 
 .PHONY: clean cleantmp
-foo:
-	echo $(WB_SRC_FILES)
+
 all: $(DST_DIR)/ctw.zip cleantmp
 
 clean: cleantmp
