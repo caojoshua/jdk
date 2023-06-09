@@ -642,14 +642,15 @@ void CallGenerator::do_late_inline_helper() {
     // Make a clone of the JVMState that appropriate to use for driving a parse
     JVMState* old_jvms = call->jvms();
     JVMState* jvms = old_jvms->clone_shallow(C);
+
+    // Clear the allocation state. We assume all inputs are materialized.
+    jvms->alloc_state().clear();
+
     uint size = call->req();
     SafePointNode* map = new SafePointNode(size, jvms);
     for (uint i1 = 0; i1 < size; i1++) {
       map->init_req(i1, call->in(i1));
     }
-
-    // Clear the allocation state. We assume all inputs are materialized.
-    jvms->alloc_state().clear();
 
     // Make sure the state is a MergeMem for parsing.
     if (!map->in(TypeFunc::Memory)->is_MergeMem()) {
