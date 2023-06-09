@@ -648,6 +648,9 @@ void CallGenerator::do_late_inline_helper() {
       map->init_req(i1, call->in(i1));
     }
 
+    // Clear the allocation state. We assume all inputs are materialized.
+    jvms->alloc_state().clear();
+
     // Make sure the state is a MergeMem for parsing.
     if (!map->in(TypeFunc::Memory)->is_MergeMem()) {
       Node* mem = MergeMemNode::make(map->in(TypeFunc::Memory));
