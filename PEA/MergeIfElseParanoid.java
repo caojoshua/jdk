@@ -15,6 +15,9 @@ class MergeIfElseParanoid {
         // When `cond == true`, we materialize foo a second time. We cannot
         // eliminate the original allocation because we need for when
         // `cond == false`.
+        //
+        // If we have passive materialization, we would materialize foo in the
+        // predecessor, and the original object would be dead.
         _global2 = foo;
     }
 
