@@ -342,6 +342,7 @@ class Compile : public Phase {
   uint                  _igv_idx;               // Counter for IGV node identifiers
   bool                  _trace_opto_output;
   bool                  _parsed_irreducible_loop; // True if ciTypeFlow detected irreducible loops during parsing
+  bool                  _pea_method_only; // True if we should run PEA
 #endif
   bool                  _has_irreducible_loop;  // Found irreducible loops
   // JSR 292
@@ -664,6 +665,8 @@ private:
   void          set_clinit_barrier_on_entry(bool z) { _clinit_barrier_on_entry = z; }
   bool              has_monitors() const         { return _has_monitors; }
   void          set_has_monitors(bool v)         { _has_monitors = v; }
+  bool              has_pea_method_only() const  { return _pea_method_only; }
+  void          set_pea_method_only(bool v)      { _pea_method_only = v; }
 
   // check the CompilerOracle for special behaviours for this compile
   bool          method_has_option(enum CompileCommand option) {

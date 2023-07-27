@@ -698,6 +698,7 @@ Compile::Compile( ciEnv* ci_env, ciMethod* target, int osr_bci,
   }
   set_print_inlining(directive->PrintInliningOption || PrintOptoInlining);
   set_print_intrinsics(directive->PrintIntrinsicsOption);
+  set_pea_method_only(directive->PEAMethodOnlyOption);
   set_has_irreducible_loop(true); // conservative until build_loop_tree() reset it
 
   if (ProfileTraps RTM_OPT_ONLY( || UseRTMLocking )) {

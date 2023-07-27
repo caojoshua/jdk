@@ -96,6 +96,7 @@ NOT_PRODUCT(option(TestOptionBool2,  "TestOptionBool2",  Bool)) \
 NOT_PRODUCT(option(TestOptionStr,    "TestOptionStr",    Ccstr)) \
 NOT_PRODUCT(option(TestOptionList,   "TestOptionList",   Ccstrlist)) \
 NOT_PRODUCT(option(TestOptionDouble, "TestOptionDouble", Double)) \
+NOT_PRODUCT(option(PEAMethodOnly, "PEAMethodOnly", Bool)) \
   option(Option, "option", Unknown) \
   option(Unknown, "unknown", Unknown)
 
