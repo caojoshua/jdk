@@ -193,7 +193,6 @@ void Parse::do_monitor_enter() {
     // TODO: PEA can support monitors
     PartialEscapeAnalysis* pea = PEA();
     PEAState& state = jvms()->alloc_state();
-    ObjID id;
 
     if (state.as_virtual(pea, obj) != nullptr) {
       state.escape(pea->is_alias(obj), obj, false);
