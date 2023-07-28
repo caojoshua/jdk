@@ -195,8 +195,8 @@ void Parse::do_monitor_enter() {
     PEAState& state = jvms()->alloc_state();
     ObjID id;
 
-    if ((id = pea->is_alias(obj)) && state.get_object_state(id)->is_virtual()) {
-      state.escape(id, obj, false);
+    if (state.as_virtual(pea, obj) != nullptr) {
+      state.escape(pea->is_alias(obj), obj, false);
     }
   }
 
