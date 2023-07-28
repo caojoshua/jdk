@@ -338,6 +338,7 @@ private:
 
   NONCOPYABLE(PEAContext);
 public:
+  bool match(ciMethod* method) const;
   // mayer's singleton.
   static PEAContext& instance() {
     static PEAContext s;
@@ -522,7 +523,7 @@ void PEAState::add_new_allocation(GraphKit* kit, Node* obj) {
     }
 
     ciMethod* method = kit->jvms()->method();
-    if (kit->C->has_pea_method_only()) {
+    if (PEAContext::instance().match(method) || kit->C->has_pea_method_only()) {
 #ifndef PRODUCT
       if (PEAVerbose) {
         if (method != nullptr) {
@@ -987,6 +988,15 @@ void AllocationStateMerger::merge_at_phi_creation(const PartialEscapeAnalysis* p
 }
 
 AllocationStateMerger::~AllocationStateMerger() {
+}
+
+bool PEAContext::match(ciMethod* method) const {
+  if (_matcher != nullptr && method != nullptr) {
+    VM_ENTRY_MARK;
+    methodHandle mh(THREAD, method->get_Method());
+    return _matcher->match(mh);
+  }
+  return true;
 }
 
 EscapedState* PEAState::escape(ObjID id, Node* p, bool materialized) {
