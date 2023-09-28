@@ -310,7 +310,7 @@ class PEAState {
   }
 
   // we drop out all virtual objects when we encounter a loop header.
-  void mark_all_escaped();
+  void mark_all_escaped(SafePointNode*);
 
 #ifndef PRODUCT
   void print_on(outputStream* os) const;

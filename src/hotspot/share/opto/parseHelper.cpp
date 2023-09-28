@@ -774,7 +774,16 @@ void PEAState::validate() const {
 }
 #endif
 
-void PEAState::mark_all_escaped() {
+bool safepointContains(SafePointNode* sfpt, Node *oop) {
+  for (uint i = TypeFunc::Parms; i < sfpt->req(); ++i) {
+    if (oop == sfpt->in(i)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void PEAState::mark_all_escaped(SafePointNode* sfpt) {
   Unique_Node_List objs;
   int sz = objects(objs);
 
@@ -783,7 +792,11 @@ void PEAState::mark_all_escaped() {
     ObjectState* os = get_object_state(id);
 
     if (os->is_virtual()) {
-      escape(id, get_java_oop(id), false);
+      Node *oop = get_java_oop(id);
+      // We only need to mark objects that are live as escaped.
+      if (safepointContains(sfpt, oop)) {
+        escape(id, get_java_oop(id), false);
+      }
     }
   }
 }
