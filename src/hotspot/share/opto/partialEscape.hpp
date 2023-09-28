@@ -310,7 +310,7 @@ class PEAState {
   }
 
   // we drop out all virtual objects when we encounter a loop header.
-  void mark_all_escaped();
+  void materialize_all_live_objects(GraphKit* kit, SafePointNode* map);
 
 #ifndef PRODUCT
   void print_on(outputStream* os) const;

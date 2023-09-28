@@ -35,7 +35,7 @@ class SimpleLoop {
 
         for (int i =0; i< 24; ++i) {
             if (results[i] != kase.elements[i]) {
-                throw new RuntimeException("wong answser at " + i);
+                throw new RuntimeException("wrong answser at " + i);
             }
         }
     }
