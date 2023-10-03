@@ -736,7 +736,6 @@ void Parse::do_all_blocks() {
         set_map(clone_map());
 
         if (DoPartialEscapeAnalysis && block->is_loop_head()) {
-          kill_dead_locals();
           PEAState& as = jvms()->alloc_state();
           as.mark_all_live_objects_escaped(PEA(), block->start_map());
         }
