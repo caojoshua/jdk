@@ -36,6 +36,7 @@ import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Warmup;
 
 import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 @BenchmarkMode(Mode.AverageTime)
@@ -45,26 +46,31 @@ import java.util.HashMap;
 @State(Scope.Benchmark)
 @Fork(value = 3)
 public class HashMapBench {
-    @Param("100000")
+    @Param("1024")
     private int size;
 
-    @Param("2")
+    @Param({"1", "2", "4"})
     private int fillInterval;
 
+    ArrayList<Integer> keys;
     HashMap<Integer, Object> map;
 
     @Setup
     public void setUp() {
+        keys = new ArrayList<>();
         map = new HashMap<>();
-        for (int i = 0; i < size; i += fillInterval) {
-            map.put(i, new Object());
+        for (int i = 0; i < size; ++i) {
+            keys.add(i);
+            if (i % fillInterval == 0) {
+                map.put(i, new Object());
+            }
         }
     }
 
     @Benchmark
     public void replace() {
         for (int i = 0; i < size; ++i) {
-            map.replace(i, new Object());
+            map.replace(keys.get(i), new Object());
         }
     }
 }
