@@ -838,6 +838,9 @@ class GraphKit : public Phase {
   // helper functions for the fast path/slow path idioms
   Node* fast_and_slow(Node* in, const Type *result_type, Node* null_result, IfNode* fast_test, Node* fast_result, address slow_call, const TypeFunc *slow_call_type, Node* slow_arg, Klass* ex_klass, Node* slow_result);
 
+  // helper function to cast n to t
+  Node* cast_common(Node *n, const TypeOopPtr* t, PhaseGVN *gvn = nullptr);
+
   // Generate an instance-of idiom.  Used by both the instance-of bytecode
   // and the reflective instance-of call.
   Node* gen_instanceof(Node *subobj, Node* superkls, bool safe_for_replace = false);
@@ -916,7 +919,7 @@ class GraphKit : public Phase {
   Node* box_vector(Node* in, const TypeInstPtr* vbox_type, BasicType elem_bt, int num_elem, bool deoptimize_on_exception = false);
   Node* unbox_vector(Node* in, const TypeInstPtr* vbox_type, BasicType elem_bt, int num_elem, bool shuffle_to_vector = false);
   Node* vector_shift_count(Node* cnt, int shift_op, BasicType bt, int num_elem);
-  void backfill_materialized(SafePointNode* map, uint begin, uint end, PEAState& as);
+  void backfill_materialized(SafePointNode* map, uint begin, uint end, PEAState& as, PartialEscapeAnalysis* pea);
 };
 
 // Helper class to support building of control flow branches. Upon

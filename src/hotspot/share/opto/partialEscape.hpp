@@ -84,6 +84,9 @@ class VirtualState: public ObjectState {
 
   ObjectState& merge(ObjectState* newin, GraphKit* kit, RegionNode* region, int pnum) override;
 
+  const TypeOopPtr* oop_type() const {
+    return _oop_type;
+  }
   void lock_inc() { _lockcnt++; }
   void lock_dec() {
     assert(_lockcnt > 0, "sanity check");
@@ -138,6 +141,10 @@ class VirtualState: public ObjectState {
   };
 
   iterator field_iterator() {
+    return {this};
+  }
+
+  iterator field_iterator() const {
     return {this};
   }
 };
@@ -200,6 +207,10 @@ class PartialEscapeAnalysis : public AnyObj {
 
 public:
   PartialEscapeAnalysis(Arena* arena): _aliases(), _objects(arena, 2, 0, nullptr) {}
+
+  const PEAMap<Node*, ObjID>& aliases() const {
+    return _aliases;
+  }
 
   ObjID is_alias(Node* node) const {
     assert(node != nullptr || !_aliases.contains(node), "_aliases.contain(nullptr) must return false");

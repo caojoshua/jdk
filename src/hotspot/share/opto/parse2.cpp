@@ -1706,7 +1706,7 @@ void Parse::sharpen_type_after_if(BoolTest::mask btest,
           JVMState* jvms = this->jvms();
           if (obj_in_map >= 0 &&
               (jvms->is_loc(obj_in_map) || jvms->is_stk(obj_in_map))) {
-            TypeNode* ccast = new CheckCastPPNode(control(), obj, tboth);
+            Node* ccast = cast_common(obj, tboth);
             const Type* tcc = ccast->as_Type()->type();
             assert(tcc != obj_type && tcc->higher_equal(obj_type), "must improve");
             // Delay transform() call to allow recovery of pre-cast value

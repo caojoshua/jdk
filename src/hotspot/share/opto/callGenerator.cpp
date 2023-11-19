@@ -1100,7 +1100,7 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
           const Type*       sig_type = TypeOopPtr::make_from_klass(signature->accessing_klass());
           if (arg_type != nullptr && !arg_type->higher_equal(sig_type)) {
             const Type* recv_type = arg_type->filter_speculative(sig_type); // keep speculative part
-            Node* cast_obj = gvn.transform(new CheckCastPPNode(kit.control(), arg, recv_type));
+            Node* cast_obj = kit.cast_common(arg, (TypeOopPtr*) recv_type, &gvn);
             kit.set_argument(0, cast_obj);
           }
         }
@@ -1113,7 +1113,7 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
             const Type*       sig_type = TypeOopPtr::make_from_klass(t->as_klass());
             if (arg_type != nullptr && !arg_type->higher_equal(sig_type)) {
               const Type* narrowed_arg_type = arg_type->filter_speculative(sig_type); // keep speculative part
-              Node* cast_obj = gvn.transform(new CheckCastPPNode(kit.control(), arg, narrowed_arg_type));
+              Node* cast_obj = kit.cast_common(arg, (TypeOopPtr*) narrowed_arg_type, &gvn);
               kit.set_argument(receiver_skip + j, cast_obj);
             }
           }

@@ -766,10 +766,10 @@ void Parse::do_call() {
           assert(is_reference_type(ct), "rt=%s, ct=%s", type2name(rt), type2name(ct));
           if (ctype->is_loaded()) {
             const TypeOopPtr* arg_type = TypeOopPtr::make_from_klass(rtype->as_klass());
-            const Type*       sig_type = TypeOopPtr::make_from_klass(ctype->as_klass());
+            const TypeOopPtr* sig_type = TypeOopPtr::make_from_klass(ctype->as_klass());
             if (arg_type != nullptr && !arg_type->higher_equal(sig_type)) {
               Node* retnode = pop();
-              Node* cast_obj = _gvn.transform(new CheckCastPPNode(control(), retnode, sig_type));
+              Node* cast_obj = cast_common(retnode, sig_type, &_gvn);
               push(cast_obj);
             }
           }
@@ -1051,7 +1051,7 @@ void Parse::catch_inline_exceptions(SafePointNode* ex_map) {
       PreserveJVMState pjvms(this);
       const TypeInstPtr* tinst = TypeOopPtr::make_from_klass_unique(klass)->cast_to_ptr_type(TypePtr::NotNull)->is_instptr();
       assert(klass->has_subklass() || tinst->klass_is_exact(), "lost exactness");
-      Node* ex_oop = _gvn.transform(new CheckCastPPNode(control(), ex_node, tinst));
+      Node* ex_oop = cast_common(ex_node, tinst, &_gvn);
       push_ex_oop(ex_oop);      // Push exception oop for handler
       if (PrintOpto && WizardMode) {
         tty->print("  Catching inline exception bci:%d -> handler_bci:%d -- ", bci(), handler_bci);

@@ -489,9 +489,12 @@ ObjectState& VirtualState::merge(ObjectState* newin, GraphKit* kit, RegionNode* 
 void VirtualState::print_on(outputStream* os) const {
   os->print_cr("Virt = %p", this);
 
-  for (int i = 0; i < nfields(); ++i) {
-    Node* val = _entries[i];
-    os->print("#%d: ", i);
+  for (auto&& it = field_iterator(); it.has_next(); ++it) {
+    ciField* field = it.field();
+    tty->print("field: ");
+    field->print_name_on(tty);
+    tty->cr();
+    Node* val = it.value();
     if (val != nullptr) {
       val->dump();
     } else {
@@ -656,7 +659,7 @@ Node* PEAState::materialize(GraphKit* kit, Node* var) {
   Atomic::inc(&peaNumMaterializations);
 #endif
 
-  const TypeOopPtr* oop_type = var->as_Type()->type()->is_oopptr();
+  const TypeOopPtr* oop_type = virt->oop_type();
   Node* objx = kit->materialize_object(alloc, oop_type);
 
   // we save VirtualState beforehand.
@@ -694,7 +697,13 @@ Node* PEAState::materialize(GraphKit* kit, Node* var) {
     assert(cnt == virt->lockcnt(), "steal all locks from var");
   }
 
-  kit->replace_in_map(var, objx);
+  // Replace all aliases with the new object.
+  pea->aliases().iterate([&](Node* node, ObjID obj) {
+    if (alloc == obj) {
+      kit->replace_in_map(node, objx);
+    }
+    return true;
+  });
 
 #ifndef PRODUCT
   if (PEAVerbose) {
@@ -704,9 +713,6 @@ Node* PEAState::materialize(GraphKit* kit, Node* var) {
 #endif
 
   if (oop_type->isa_instptr()) {
-    // virt->_oop_type is an exact non-null pointer. oop_type may not be exact, or BOT
-    // We check that they both refer to the same java type.
-    assert(virt->_oop_type->is_instptr()->is_same_java_type_as(oop_type), "type of oopptr is inconsistent!");
 #ifndef PRODUCT
     if (PEAVerbose) {
       ciInstanceKlass* ik = oop_type->is_instptr()->instance_klass();
@@ -741,7 +747,7 @@ Node* PEAState::materialize(GraphKit* kit, Node* var) {
         VirtualState* vs = static_cast<VirtualState*>(os);
 
         for (auto&& i = vs->field_iterator(); i.has_next(); ++i) {
-          if (i.value() == var) {
+          if (alloc == pea->is_alias(i.value())) {
             vs->set_field(i.field(), objx);
             put_field(kit, i.field(), get_java_oop(obj), objx);
           }

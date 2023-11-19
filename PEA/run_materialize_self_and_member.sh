@@ -1,0 +1,1 @@
+java -ea -XX:+UnlockExperimentalVMOptions -XX:-TieredCompilation -XX:CompileOnly="MaterializeSelfAndMember::wrapper" -XX:CompileCommand="dontinline,MaterializeSelfAndMember::initMember" $* MaterializeSelfAndMember
