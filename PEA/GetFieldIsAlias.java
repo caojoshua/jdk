@@ -23,9 +23,7 @@ class GetFieldIsAlias {
     public static void main(String[] args) {
         for (int i = 0; i< 200_000; ++i) {
             var obj = new GetFieldIsAlias();
-            if (obj.type.parent != obj) {
-                throw new RuntimeException("wrong answer");
-            }
+            assert obj.type.parent == obj : "wrong answer on iteration " + i + ". obj is " + obj + " and obj.type.parent is " + obj.type.parent;
         }
     }
 }

@@ -6,7 +6,7 @@ if $0 == __FILE__
   puts  "using #{%x|which java|}"
   java_version = `java --version`
 
-  jvm_options ="-Xlog:gc -XX:+DoPartialEscapeAnalysis"
+  jvm_options ="-Xlog:gc -XX:+DoPartialEscapeAnalysis -XX:+PEAVerbose"
   if java_version =~ /\(.*debug build/
     jvm_options << " -XX:+PrintEscapeAnalysis -XX:+PrintEliminateAllocations -XX:+PrintOptoStatistics"
   end

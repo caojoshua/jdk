@@ -1706,7 +1706,7 @@ void Parse::sharpen_type_after_if(BoolTest::mask btest,
           JVMState* jvms = this->jvms();
           if (obj_in_map >= 0 &&
               (jvms->is_loc(obj_in_map) || jvms->is_stk(obj_in_map))) {
-            TypeNode* ccast = new CheckCastPPNode(control(), obj, tboth);
+            Node* ccast = cast_common(obj, tboth);
             const Type* tcc = ccast->as_Type()->type();
             assert(tcc != obj_type && tcc->higher_equal(obj_type), "must improve");
             // Delay transform() call to allow recovery of pre-cast value
@@ -1745,6 +1745,15 @@ void Parse::sharpen_type_after_if(BoolTest::mask btest,
       } else if (tcon == TypePtr::NULL_PTR) {
         // Cast to null, but keep the pointer identity temporarily live.
         ccast = new CastPPNode(val, tboth);
+        if (DoPartialEscapeAnalysis) {
+          PEAState& as = jvms()->alloc_state();
+          PartialEscapeAnalysis *pea = PEA();
+          VirtualState* vs = as.as_virtual(pea, val);
+          // The casted object node aliases to the same object as the original node.
+          if (vs != nullptr) {
+            pea->add_alias(pea->is_alias(val), ccast);
+          }
+        }
       } else {
         const TypeF* tf = tcon->isa_float_constant();
         const TypeD* td = tcon->isa_double_constant();

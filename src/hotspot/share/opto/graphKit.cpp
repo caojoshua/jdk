@@ -1441,9 +1441,21 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   // Object is already not-null?
   if( t == t_not_null ) return obj;
 
-  Node *cast = new CastPPNode(obj,t_not_null);
-  cast->init_req(0, control());
-  cast = _gvn.transform( cast );
+  Node* orig_cast = new CastPPNode(obj,t_not_null);
+  // TODO: Need to cast old cast as well?
+  orig_cast->init_req(0, control());
+  Node* cast = _gvn.transform(orig_cast);
+
+  if (DoPartialEscapeAnalysis) {
+    PEAState& as = jvms()->alloc_state();
+    PartialEscapeAnalysis *pea = PEA();
+    VirtualState* vs = as.as_virtual(pea, obj);
+    // The null-checked object node aliases to the same object as the original node.
+    if (vs != nullptr) {
+      pea->add_alias(pea->is_alias(obj), orig_cast);
+      pea->add_alias(pea->is_alias(obj), cast);
+    }
+  }
 
   // Scan for instances of 'obj' in the current JVM mapping.
   // These instances are known to be not-null after the test.
@@ -2242,8 +2254,7 @@ Node* GraphKit::record_profile_for_speculation(Node* n, ciKlass* exact_kls, Prof
     // the new type. The new type depends on the control: what
     // profiling tells us is only valid from here as far as we can
     // tell.
-    Node* cast = new CheckCastPPNode(control(), n, current_type->remove_speculative()->join_speculative(spec_type));
-    cast = _gvn.transform(cast);
+    Node* cast = cast_common(n, (TypeOopPtr *)current_type->remove_speculative()->join_speculative(spec_type), &_gvn);
     replace_in_map(n, cast);
     n = cast;
   }
@@ -2931,8 +2942,7 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
     if (!receiver_type->higher_equal(recvx_type)) { // ignore redundant casts
       // Subsume downstream occurrences of receiver with a cast to
       // recv_xtype, since now we know what the type will be.
-      Node* cast = new CheckCastPPNode(control(), receiver, recvx_type);
-      (*casted_receiver) = _gvn.transform(cast);
+      (*casted_receiver) = cast_common(receiver, recvx_type, &_gvn);
       assert(!(*casted_receiver)->is_top(), "that path should be unreachable");
       // (User must make the replace_in_map call.)
     }
@@ -2954,8 +2964,7 @@ Node* GraphKit::subtype_check_receiver(Node* receiver, ciKlass* klass,
     const TypeOopPtr* receiver_type = _gvn.type(receiver)->isa_oopptr();
     const TypeOopPtr* recv_type = tklass->cast_to_exactness(false)->is_klassptr()->as_instance_type();
     if (!receiver_type->higher_equal(recv_type)) { // ignore redundant casts
-      Node* cast = new CheckCastPPNode(control(), receiver, recv_type);
-      (*casted_receiver) = _gvn.transform(cast);
+      (*casted_receiver) = cast_common(receiver, recv_type, &_gvn);
     }
   }
 
@@ -3145,6 +3154,39 @@ Node* GraphKit::maybe_cast_profiled_obj(Node* obj,
     }
   }
   return obj;
+}
+
+Node* GraphKit::cast_common(Node* n, const TypeOopPtr* t, PhaseGVN *gvn) {
+  Node* cast = new CheckCastPPNode(control(), n, t);
+  Node* gvn_cast = nullptr;
+  if (gvn) {
+    // TODO: do we need to alias to old cast as well?
+    gvn_cast = gvn->transform(cast);
+  }
+
+  if (DoPartialEscapeAnalysis) {
+    PEAState& as = jvms()->alloc_state();
+    PartialEscapeAnalysis *pea = PEA();
+    VirtualState* vs = as.as_virtual(pea, n);
+    // The casted object node aliases to the same object as the original node.
+    if (vs != nullptr && vs->oop_type()->higher_equal(t)) {
+      // It is possible that the types do no align. See Test8002069 for example.
+      // When we call `t.o.foo()`, PEA knows that `t.o` is a `B`. But Parse does
+      // not know this. It inserts a PredictedCallGenerator and casts t.o to A
+      // and B in different branches.
+      // TODO: What to do about misaligned types. Should not matter for straight line code, but we should think
+      // about loops.
+      // assert(vs->oop_type()->higher_equal(t), "allocation should have type higher or equal to the aliased node");
+      pea->add_alias(pea->is_alias(n), cast);
+      if (gvn_cast) {
+        pea->add_alias(pea->is_alias(n), gvn_cast);
+      }
+    }
+  }
+  if (gvn_cast) {
+    return gvn_cast;
+  }
+  return cast;
 }
 
 //-------------------------------gen_instanceof--------------------------------
@@ -3356,7 +3398,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
     Node* not_subtype_ctrl = gen_subtype_check(not_null_obj, superklass );
 
     // Plug in success path into the merge
-    cast_obj = _gvn.transform(new CheckCastPPNode(control(), not_null_obj, toop));
+    cast_obj = cast_common(not_null_obj, toop, &_gvn);
     // Failure path ends in uncommon trap (or may be dead - failure impossible)
     if (failure_control == nullptr) {
       if (not_subtype_ctrl != top()) { // If failure is possible
@@ -3702,8 +3744,7 @@ Node* GraphKit::set_output_for_allocation_common(AllocateNode* alloc,
   }
 
   // Cast raw oop to the real thing...
-  Node* javaoop = new CheckCastPPNode(control(), rawoop, oop_type);
-  javaoop = _gvn.transform(javaoop);
+  Node* javaoop = cast_common(rawoop, oop_type, &_gvn);
   C->set_recent_alloc(control(), javaoop);
   assert(just_allocated_object(control()) == javaoop, "just allocated");
 

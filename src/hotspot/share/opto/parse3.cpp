@@ -164,24 +164,23 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
     type = Type::get_const_basic_type(bt);
   }
 
-  Node* ld = nullptr;
+  Node* ld = access_load_at(obj, adr, adr_type, type, bt, decorators);
 
   if (DoPartialEscapeAnalysis && is_field) { // non-static field a global
     PEAState& as = jvms()->alloc_state();
-    VirtualState* vs = as.as_virtual(PEA(), obj);
+    PartialEscapeAnalysis *pea = PEA();
+    VirtualState* vs = as.as_virtual(pea, obj);
     if (vs != nullptr) { // obj is a virtual object
       Node* val = vs->get_field(field);
+      VirtualState *field_vs = as.as_virtual(pea, val);
       // val is nullptr because the field is not explicitly initialized. It is 'null'.
-      // We only replace an instance pointer here. for array pointer, we need to cast 'val' from oop-ptr to aryptr.
-      if (is_obj && val != nullptr && type->isa_instptr()) {
-        ld = val;
+      // We only add alias for instance pointers here. for array pointer, we need to cast 'val' from oop-ptr to aryptr.
+      if (is_obj && val != nullptr && type->isa_instptr() && field_vs) {
+        ObjID alias = pea->is_alias(val);
+        // If ld is a DecodeN, do we need to alias the underlying LoadN?
+        pea->add_alias(alias, ld);
       }
-      // theoretically, we can replace ld with val if val is scalar or even nullptr.
-      // Graal has a feature called 'ReadElimination to do so.
     }
-  }
-  if (ld == nullptr) {
-    ld = access_load_at(obj, adr, adr_type, type, bt, decorators);
   }
   // Adjust Java stack
   if (type2size[bt] == 1)
@@ -453,10 +452,10 @@ void Parse::do_multianewarray() {
 
   Node* res = _gvn.transform(new ProjNode(c, TypeFunc::Parms));
 
-  const Type* type = TypeOopPtr::make_from_klass_raw(array_klass, Type::trust_interfaces);
+  const TypeOopPtr* type = TypeOopPtr::make_from_klass_raw(array_klass, Type::trust_interfaces);
 
   // Improve the type:  We know it's not null, exact, and of a given length.
-  type = type->is_ptr()->cast_to_ptr_type(TypePtr::NotNull);
+  type = type->cast_to_ptr_type(TypePtr::NotNull);
   type = type->is_aryptr()->cast_to_exactness(true);
 
   const TypeInt* ltype = _gvn.find_int_type(length[0]);
@@ -465,7 +464,7 @@ void Parse::do_multianewarray() {
 
     // We cannot sharpen the nested sub-arrays, since the top level is mutable.
 
-  Node* cast = _gvn.transform( new CheckCastPPNode(control(), res, type) );
+  Node* cast = _gvn.transform(cast_common(res, type) );
   push(cast);
 
   // Possible improvements:

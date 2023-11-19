@@ -44,8 +44,8 @@ public class TestGCBasher {
                     !p.getFileName().toString().equals("module-info.class")) {
                     byte[] data = Files.readAllBytes(p);
                     Decompiler d = new Decompiler(data);
-                    ClassInfo ci = d.getClassInfo();
-                    deps.put(ci.getName(), ci);
+                //     ClassInfo ci = d.getClassInfo();
+                //     deps.put(ci.getName(), ci);
                 }
             }
         }
