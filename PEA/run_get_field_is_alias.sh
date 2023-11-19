@@ -1,2 +1,2 @@
 #!/usr/bin/bash
-java -XX:+UnlockExperimentalVMOptions -Xbatch -XX:CompileCommand=compileOnly,GetFieldIsAlias::main -XX:CompileCommand=quiet $* GetFieldIsAlias
+java -ea -XX:+UnlockExperimentalVMOptions -Xbatch -XX:CompileCommand=compileOnly,GetFieldIsAlias::main -XX:CompileCommand=quiet $* GetFieldIsAlias

@@ -1445,6 +1445,16 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   cast->init_req(0, control());
   cast = _gvn.transform( cast );
 
+  if (DoPartialEscapeAnalysis) {
+    PEAState& as = jvms()->alloc_state();
+    PartialEscapeAnalysis *pea = PEA();
+    VirtualState* vs = as.as_virtual(pea, obj);
+    // The null-checked object node aliases to the same object as the original node.
+    if (vs != nullptr) {
+      pea->add_alias(pea->is_alias(obj), cast);
+    }
+  }
+
   // Scan for instances of 'obj' in the current JVM mapping.
   // These instances are known to be not-null after the test.
   if (do_replace_in_map)

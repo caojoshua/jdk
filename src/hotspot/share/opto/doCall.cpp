@@ -692,12 +692,23 @@ void Parse::do_call() {
 
   // save across call, for a subsequent cast_not_null.
   Node* receiver = has_receiver ? argument(0) : nullptr;
+  Node* orig_receiver = receiver;
 
   // The extra CheckCastPPs for speculative types mess with PhaseStringOpts
   if (receiver != nullptr && !call_does_dispatch && !cg->is_string_late_inline()) {
     // Feed profiling data for a single receiver to the type system so
     // it can propagate it as a speculative type
     receiver = record_profiled_receiver_for_speculation(receiver);
+  }
+
+  PartialEscapeAnalysis *pea = PEA();
+  if (DoPartialEscapeAnalysis) {
+    PEAState& as = jvms->alloc_state();
+    VirtualState *vs = as.as_virtual(pea, orig_receiver);
+    // The casted object node aliases to the same object as the original node.
+    if (vs != nullptr) {
+      pea->add_alias(pea->is_alias(orig_receiver), receiver);
+    }
   }
 
   JVMState* new_jvms = cg->generate(jvms);
