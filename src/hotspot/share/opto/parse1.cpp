@@ -1198,7 +1198,7 @@ void Parse::do_exits() {
   if (DoPartialEscapeAnalysis) {
     PEAState& as = _exits.jvms()->alloc_state();
     SafePointNode* map = _exits.map();
-    backfill_materialized(map, TypeFunc::Parms, map->req(), as);
+    backfill_materialized(map, TypeFunc::Parms, map->req(), as, PEA());
   }
 }
 

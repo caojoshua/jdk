@@ -1029,7 +1029,7 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
   }
 
   PEAState& as = youngest_jvms->alloc_state();
-  backfill_materialized(call, TypeFunc::Parms, call->req(), as);
+  backfill_materialized(call, TypeFunc::Parms, call->req(), as, PEA());
   assert(debug_ptr == non_debug_edges, "debug info must fit exactly");
 
   // Test the correctness of JVMState::debug_xxx accessors:
@@ -4385,28 +4385,33 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
   return nullptr;
 }
 
-void GraphKit::backfill_materialized(SafePointNode* map, uint begin, uint end, PEAState& as){
+void GraphKit::backfill_materialized(SafePointNode* map, uint begin, uint end, PEAState& as, PartialEscapeAnalysis* pea){
+  if (pea == nullptr) {
+    return;
+  }
   bool printed = false;
 
   for (uint i = begin; i < end; ++i) {
     Node* t = map->in(i);
 
-    if (t != nullptr && t->is_CheckCastPP()) {
-      AllocateNode* alloc = AllocateNode::Ideal_allocation(t);
+    if (t != nullptr) {
+      ObjID alloc = pea->is_alias(t);
+      if (alloc != nullptr) {
 
-      if (as.contains(alloc)) {
-        Node* neww = as.get_materialized_value(alloc);
-        if (neww != nullptr && neww != t) {
+        if (as.contains(alloc)) {
+          Node* neww = as.get_materialized_value(alloc);
+          if (neww != nullptr && neww != t) {
 #ifndef PRODUCT
-          if (PEAVerbose) {
-            if (!printed) {
-              map->dump();
-              printed = true;
+            if (PEAVerbose) {
+              if (!printed) {
+                map->dump();
+                printed = true;
+              }
+              tty->print_cr("[PEA] replace %d with node %d", i, neww->_idx);
             }
-            tty->print_cr("[PEA] replace %d with node %d", i, neww->_idx);
-          }
 #endif
-          map->set_req(i, neww);
+            map->set_req(i, neww);
+          }
         }
       }
     }

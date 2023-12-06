@@ -919,7 +919,7 @@ class GraphKit : public Phase {
   Node* box_vector(Node* in, const TypeInstPtr* vbox_type, BasicType elem_bt, int num_elem, bool deoptimize_on_exception = false);
   Node* unbox_vector(Node* in, const TypeInstPtr* vbox_type, BasicType elem_bt, int num_elem, bool shuffle_to_vector = false);
   Node* vector_shift_count(Node* cnt, int shift_op, BasicType bt, int num_elem);
-  void backfill_materialized(SafePointNode* map, uint begin, uint end, PEAState& as);
+  void backfill_materialized(SafePointNode* map, uint begin, uint end, PEAState& as, PartialEscapeAnalysis* pea);
 };
 
 // Helper class to support building of control flow branches. Upon
