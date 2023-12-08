@@ -2073,6 +2073,15 @@ Node* LibraryCallKit::make_unsafe_address(Node*& base, Node* offset, BasicType t
     }
     // We don't know if it's an on heap or off heap access. Fall back
     // to raw memory access.
+    if (DoPartialEscapeAnalysis) {
+      // Is it possible for an alias to reach here? We should probably materialize.
+      PEAState& as = jvms()->alloc_state();
+      PartialEscapeAnalysis *pea = PEA();
+      VirtualState* vs = as.as_virtual(pea, base);
+      if (vs != nullptr) {
+        base = as.materialize(this, base);
+      }
+    }
     Node* raw = _gvn.transform(new CheckCastPPNode(control(), base, TypeRawPtr::BOTTOM));
     return basic_plus_adr(top(), raw, offset);
   } else {
@@ -5730,8 +5739,8 @@ bool LibraryCallKit::inline_arraycopy() {
     }
 
     const TypeKlassPtr* dest_klass_t = _gvn.type(dest_klass)->is_klassptr();
-    const Type *toop = dest_klass_t->cast_to_exactness(false)->as_instance_type();
-    src = _gvn.transform(new CheckCastPPNode(control(), src, toop));
+    const TypeOopPtr* toop = dest_klass_t->cast_to_exactness(false)->as_instance_type();
+    src = cast_common(src, toop, &_gvn);
     arraycopy_move_allocation_here(alloc, dest, saved_jvms_before_guards, saved_reexecute_sp, new_idx);
   }
 
@@ -6967,8 +6976,7 @@ bool LibraryCallKit::inline_cipherBlockChaining_AESCrypt(vmIntrinsics::ID id) {
   ciInstanceKlass* instklass_AESCrypt = klass_AESCrypt->as_instance_klass();
   const TypeKlassPtr* aklass = TypeKlassPtr::make(instklass_AESCrypt);
   const TypeOopPtr* xtype = aklass->as_instance_type()->cast_to_ptr_type(TypePtr::NotNull);
-  Node* aescrypt_object = new CheckCastPPNode(control(), embeddedCipherObj, xtype);
-  aescrypt_object = _gvn.transform(aescrypt_object);
+  Node* aescrypt_object = cast_common(embeddedCipherObj, xtype, &_gvn);
 
   // we need to get the start of the aescrypt_object's expanded key array
   Node* k_start = get_key_start_from_aescrypt_object(aescrypt_object);
@@ -7053,8 +7061,7 @@ bool LibraryCallKit::inline_electronicCodeBook_AESCrypt(vmIntrinsics::ID id) {
   ciInstanceKlass* instklass_AESCrypt = klass_AESCrypt->as_instance_klass();
   const TypeKlassPtr* aklass = TypeKlassPtr::make(instklass_AESCrypt);
   const TypeOopPtr* xtype = aklass->as_instance_type()->cast_to_ptr_type(TypePtr::NotNull);
-  Node* aescrypt_object = new CheckCastPPNode(control(), embeddedCipherObj, xtype);
-  aescrypt_object = _gvn.transform(aescrypt_object);
+  Node* aescrypt_object = cast_common(embeddedCipherObj, xtype, &_gvn);
 
   // we need to get the start of the aescrypt_object's expanded key array
   Node* k_start = get_key_start_from_aescrypt_object(aescrypt_object);
@@ -7122,8 +7129,7 @@ bool LibraryCallKit::inline_counterMode_AESCrypt(vmIntrinsics::ID id) {
   ciInstanceKlass* instklass_AESCrypt = klass_AESCrypt->as_instance_klass();
   const TypeKlassPtr* aklass = TypeKlassPtr::make(instklass_AESCrypt);
   const TypeOopPtr* xtype = aklass->as_instance_type()->cast_to_ptr_type(TypePtr::NotNull);
-  Node* aescrypt_object = new CheckCastPPNode(control(), embeddedCipherObj, xtype);
-  aescrypt_object = _gvn.transform(aescrypt_object);
+  Node* aescrypt_object = cast_common(embeddedCipherObj, xtype, &_gvn);
   // we need to get the start of the aescrypt_object's expanded key array
   Node* k_start = get_key_start_from_aescrypt_object(aescrypt_object);
   if (k_start == nullptr) return false;
@@ -7704,8 +7710,7 @@ bool LibraryCallKit::inline_digestBase_implCompressMB(Node* digestBase_obj, ciIn
                                                       Node* src_start, Node* ofs, Node* limit) {
   const TypeKlassPtr* aklass = TypeKlassPtr::make(instklass_digestBase);
   const TypeOopPtr* xtype = aklass->cast_to_exactness(false)->as_instance_type()->cast_to_ptr_type(TypePtr::NotNull);
-  Node* digest_obj = new CheckCastPPNode(control(), digestBase_obj, xtype);
-  digest_obj = _gvn.transform(digest_obj);
+  Node* digest_obj = cast_common(digestBase_obj, xtype, &_gvn);
 
   Node* state = get_state_from_digest_object(digest_obj, elem_type);
   if (state == nullptr) return false;
@@ -7797,8 +7802,7 @@ bool LibraryCallKit::inline_galoisCounterMode_AESCrypt() {
   ciInstanceKlass* instklass_AESCrypt = klass_AESCrypt->as_instance_klass();
   const TypeKlassPtr* aklass = TypeKlassPtr::make(instklass_AESCrypt);
   const TypeOopPtr* xtype = aklass->as_instance_type();
-  Node* aescrypt_object = new CheckCastPPNode(control(), embeddedCipherObj, xtype);
-  aescrypt_object = _gvn.transform(aescrypt_object);
+  Node* aescrypt_object = cast_common(embeddedCipherObj, xtype, &_gvn);
   // we need to get the start of the aescrypt_object's expanded key array
   Node* k_start = get_key_start_from_aescrypt_object(aescrypt_object);
   if (k_start == nullptr) return false;
