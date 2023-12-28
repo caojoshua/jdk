@@ -90,7 +90,7 @@ import jdk.internal.access.SharedSecrets;
  * If multiple threads access a hash map concurrently, and at least one of
  * the threads modifies the map structurally, it <i>must</i> be
  * synchronized externally.  (A structural modification is any operation
- * that adds or deletes one or more mappings; merely changing the value
+ * that adds or deletes one or more mappings; merely changing the.getValue()
  * associated with a key that an instance already contains is not a
  * structural modification.)  This is typically accomplished by
  * synchronizing on some object that naturally encapsulates the map.
@@ -252,7 +252,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * The bin count threshold for using a tree rather than list for a
      * bin.  Bins are converted to trees when adding an element to a
-     * bin with at least this many nodes. The value must be greater
+     * bin with at least this many nodes. The.getValue() must be greater
      * than 2 and should be at least 8 to mesh with assumptions in
      * tree removal about conversion back to plain bins upon
      * shrinkage.
@@ -281,23 +281,40 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     static class Node<K,V> implements Map.Entry<K,V> {
         final int hash;
         final K key;
-        V value;
         Node<K,V> next;
 
-        Node(int hash, K key, V value, Node<K,V> next) {
+        Node(int hash, K key, Node<K,V> next) {
             this.hash = hash;
             this.key = key;
-            this.value = value;
             this.next = next;
         }
 
         public final K getKey()        { return key; }
-        public final V getValue()      { return value; }
-        public final String toString() { return key + "=" + value; }
+        public V getValue()        { return null; }
+        public V setValue(V value) { return null; }
+        public final String toString() { return key + "=" + getValue(); }
 
-        public final int hashCode() {
-            return Objects.hashCode(key) ^ Objects.hashCode(value);
+        public int hashCode() {
+            return Objects.hashCode(key);
         }
+
+        public boolean equals(Object o) {
+            if (o == this)
+                return true;
+
+            return o instanceof Map.Entry<?, ?> e && Objects.equals(key, e.getKey());
+        }
+    }
+
+    static class MapNode<K, V> extends Node<K, V> {
+        V value;
+
+        MapNode(int hash, K key, V value, Node<K,V> next) {
+            super(hash, key, next);
+            this.value = value;
+        }
+
+        public final V getValue()      { return value; }
 
         public final V setValue(V newValue) {
             V oldValue = value;
@@ -305,13 +322,12 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             return oldValue;
         }
 
-        public final boolean equals(Object o) {
-            if (o == this)
-                return true;
+        public int hashCode() {
+            return super.hashCode() ^ Objects.hashCode(value);
+        }
 
-            return o instanceof Map.Entry<?, ?> e
-                    && Objects.equals(key, e.getKey())
-                    && Objects.equals(value, e.getValue());
+        public boolean equals(Object o) {
+            return super.equals(o) && Objects.equals(value, ((Map.Entry) o).getValue());
         }
     }
 
@@ -410,7 +426,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     transient int modCount;
 
     /**
-     * The next size value at which to resize (capacity * load factor).
+     * The next size.getValue() at which to resize (capacity * load factor).
      *
      * @serial
      */
@@ -543,7 +559,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns the value to which the specified key is mapped,
+     * Returns the.getValue() to which the specified key is mapped,
      * or {@code null} if this map contains no mapping for the key.
      *
      * <p>More formally, if this map contains a mapping from a key
@@ -561,7 +577,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      */
     public V get(Object key) {
         Node<K,V> e;
-        return (e = getNode(key)) == null ? null : e.value;
+        return (e = getNode(key)) == null ? null : e.getValue();
     }
 
     /**
@@ -608,7 +624,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * value is replaced.
      *
      * @param key key with which the specified value is to be associated
-     * @param value value to be associated with the specified key
+     * @param value.getValue() to be associated with the specified key
      * @return the previous value associated with {@code key}, or
      *         {@code null} if there was no mapping for {@code key}.
      *         (A {@code null} return can also indicate that the map
@@ -623,7 +639,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      *
      * @param hash hash for key
      * @param key the key
-     * @param value the value to put
+     * @param value the.getValue() to put
      * @param onlyIfAbsent if true, don't change existing value
      * @param evict if false, the table is in creation mode.
      * @return previous value, or null if none
@@ -657,9 +673,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 }
             }
             if (e != null) { // existing mapping for key
-                V oldValue = e.value;
+                V oldValue = e.getValue();
                 if (!onlyIfAbsent || oldValue == null)
-                    e.value = value;
+                    e.setValue(value);
                 afterNodeAccess(e);
                 return oldValue;
             }
@@ -803,7 +819,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     public V remove(Object key) {
         Node<K,V> e;
         return (e = removeNode(hash(key), key, null, false, true)) == null ?
-            null : e.value;
+            null : e.getValue();
     }
 
     /**
@@ -811,7 +827,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      *
      * @param hash hash for key
      * @param key the key
-     * @param value the value to match if matchValue, else ignored
+     * @param value the.getValue() to match if matchValue, else ignored
      * @param matchValue if true only remove if value is equal
      * @param movable if false do not move other nodes while removing
      * @return the node, or null if none
@@ -840,7 +856,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     } while ((e = e.next) != null);
                 }
             }
-            if (node != null && (!matchValue || (v = node.value) == value ||
+            if (node != null && (!matchValue || (v = node.getValue()) == value ||
                                  (value != null && value.equals(v)))) {
                 if (node instanceof TreeNode)
                     ((TreeNode<K,V>)node).removeTreeNode(this, tab, movable);
@@ -875,7 +891,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * Returns {@code true} if this map maps one or more keys to the
      * specified value.
      *
-     * @param value value whose presence in this map is to be tested
+     * @param value.getValue() whose presence in this map is to be tested
      * @return {@code true} if this map maps one or more keys to the
      *         specified value
      */
@@ -884,7 +900,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         if ((tab = table) != null && size > 0) {
             for (Node<K,V> e : tab) {
                 for (; e != null; e = e.next) {
-                    if ((v = e.value) == value ||
+                    if ((v = e.getValue()) == value ||
                         (value != null && value.equals(v)))
                         return true;
                 }
@@ -964,7 +980,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     /**
      * Fills an array with this map values and returns it. This method assumes
-     * that input array is big enough to fit all the values. Use
+     * that input array is big enough to fit all the.getValue()s. Use
      * {@link #prepareArray(Object[])} to ensure this.
      *
      * @param a an array to fill
@@ -978,7 +994,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         if (size > 0 && (tab = table) != null) {
             for (Node<K,V> e : tab) {
                 for (; e != null; e = e.next) {
-                    r[idx++] = e.value;
+                    r[idx++] = e.getValue();
                 }
             }
         }
@@ -1022,7 +1038,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Returns a {@link Collection} view of the values contained in this map.
+     * Returns a {@link Collection} view of the.getValue()s contained in this map.
      * The collection is backed by the map, so changes to the map are
      * reflected in the collection, and vice-versa.  If the map is
      * modified while an iteration over the collection is in progress
@@ -1034,7 +1050,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * {@code retainAll} and {@code clear} operations.  It does not
      * support the {@code add} or {@code addAll} operations.
      *
-     * @return a view of the values contained in this map
+     * @return a view of the.getValue()s contained in this map
      */
     public Collection<V> values() {
         Collection<V> vs = values;
@@ -1070,7 +1086,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 int mc = modCount;
                 for (Node<K,V> e : tab) {
                     for (; e != null; e = e.next)
-                        action.accept(e.value);
+                        action.accept(e.getValue());
                 }
                 if (modCount != mc)
                     throw new ConcurrentModificationException();
@@ -1084,7 +1100,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * reflected in the set, and vice-versa.  If the map is modified
      * while an iteration over the set is in progress (except through
      * the iterator's own {@code remove} operation, or through the
-     * {@code setValue} operation on a map entry returned by the
+     * {@code se.getValue()} operation on a map entry returned by the
      * iterator) the results of the iteration are undefined.  The set
      * supports element removal, which removes the corresponding
      * mapping from the map, via the {@code Iterator.remove},
@@ -1144,7 +1160,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     @Override
     public V getOrDefault(Object key, V defaultValue) {
         Node<K,V> e;
-        return (e = getNode(key)) == null ? defaultValue : e.value;
+        return (e = getNode(key)) == null ? defaultValue : e.getValue();
     }
 
     @Override
@@ -1161,8 +1177,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     public boolean replace(K key, V oldValue, V newValue) {
         Node<K,V> e; V v;
         if ((e = getNode(key)) != null &&
-            ((v = e.value) == oldValue || (v != null && v.equals(oldValue)))) {
-            e.value = newValue;
+            ((v = e.getValue()) == oldValue || (v != null && v.equals(oldValue)))) {
+            e.setValue(newValue);
             afterNodeAccess(e);
             return true;
         }
@@ -1173,8 +1189,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     public V replace(K key, V value) {
         Node<K,V> e;
         if ((e = getNode(key)) != null) {
-            V oldValue = e.value;
-            e.value = value;
+            V oldValue = e.getValue();
+            e.setValue(value);
             afterNodeAccess(e);
             return oldValue;
         }
@@ -1219,7 +1235,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 } while ((e = e.next) != null);
             }
             V oldValue;
-            if (old != null && (oldValue = old.value) != null) {
+            if (old != null && (oldValue = old.getValue()) != null) {
                 afterNodeAccess(old);
                 return oldValue;
             }
@@ -1230,7 +1246,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         if (v == null) {
             return null;
         } else if (old != null) {
-            old.value = v;
+            old.setValue(v);
             afterNodeAccess(old);
             return v;
         }
@@ -1264,12 +1280,12 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             throw new NullPointerException();
         Node<K,V> e; V oldValue;
         if ((e = getNode(key)) != null &&
-            (oldValue = e.value) != null) {
+            (oldValue = e.getValue()) != null) {
             int mc = modCount;
             V v = remappingFunction.apply(key, oldValue);
             if (mc != modCount) { throw new ConcurrentModificationException(); }
             if (v != null) {
-                e.value = v;
+                e.setValue(v);
                 afterNodeAccess(e);
                 return v;
             }
@@ -1319,13 +1335,13 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 } while ((e = e.next) != null);
             }
         }
-        V oldValue = (old == null) ? null : old.value;
+        V oldValue = (old == null) ? null : old.getValue();
         int mc = modCount;
         V v = remappingFunction.apply(key, oldValue);
         if (mc != modCount) { throw new ConcurrentModificationException(); }
         if (old != null) {
             if (v != null) {
-                old.value = v;
+                old.setValue(v);
                 afterNodeAccess(old);
             }
             else
@@ -1386,9 +1402,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         }
         if (old != null) {
             V v;
-            if (old.value != null) {
+            if (old.getValue() != null) {
                 int mc = modCount;
-                v = remappingFunction.apply(old.value, value);
+                v = remappingFunction.apply(old.getValue(), value);
                 if (mc != modCount) {
                     throw new ConcurrentModificationException();
                 }
@@ -1396,7 +1412,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 v = value;
             }
             if (v != null) {
-                old.value = v;
+                old.setValue(v);
                 afterNodeAccess(old);
             }
             else
@@ -1426,7 +1442,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             int mc = modCount;
             for (Node<K,V> e : tab) {
                 for (; e != null; e = e.next)
-                    action.accept(e.key, e.value);
+                    action.accept(e.key, e.getValue());
             }
             if (modCount != mc)
                 throw new ConcurrentModificationException();
@@ -1442,7 +1458,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             int mc = modCount;
             for (Node<K,V> e : tab) {
                 for (; e != null; e = e.next) {
-                    e.value = function.apply(e.key, e.value);
+                    e.setValue(function.apply(e.key, e.getValue()));
                 }
             }
             if (modCount != mc)
@@ -1630,7 +1646,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     final class ValueIterator extends HashIterator
         implements Iterator<V> {
-        public final V next() { return nextNode().value; }
+        public final V next() { return nextNode().getValue(); }
     }
 
     final class EntryIterator extends HashIterator
@@ -1784,7 +1800,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     if (p == null)
                         p = tab[i++];
                     else {
-                        action.accept(p.value);
+                        action.accept(p.getValue());
                         p = p.next;
                     }
                 } while (p != null || i < hi);
@@ -1803,7 +1819,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     if (current == null)
                         current = tab[index++];
                     else {
-                        V v = current.value;
+                        V v = current.getValue();
                         current = current.next;
                         action.accept(v);
                         if (map.modCount != expectedModCount)
@@ -1906,12 +1922,14 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     // Create a regular (non-tree) node
     Node<K,V> newNode(int hash, K key, V value, Node<K,V> next) {
-        return new Node<>(hash, key, value, next);
+        // return new Node<>(hash, key, next);
+        return new MapNode<>(hash, key, value, next);
     }
 
     // For conversion from TreeNodes to plain nodes
     Node<K,V> replacementNode(Node<K,V> p, Node<K,V> next) {
-        return new Node<>(p.hash, p.key, p.value, next);
+        // return new Node<>(p.hash, p.key, next);
+        return new MapNode<>(p.hash, p.key, p.getValue(), next);
     }
 
     // Create a tree bin node
@@ -1921,7 +1939,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     // For treeifyBin
     TreeNode<K,V> replacementTreeNode(Node<K,V> p, Node<K,V> next) {
-        return new TreeNode<>(p.hash, p.key, p.value, next);
+        return new TreeNode<>(p.hash, p.key, p.getValue(), next);
     }
 
     /**
@@ -1949,7 +1967,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             for (Node<K,V> e : tab) {
                 for (; e != null; e = e.next) {
                     s.writeObject(e.key);
-                    s.writeObject(e.value);
+                    s.writeObject(e.getValue());
                 }
             }
         }

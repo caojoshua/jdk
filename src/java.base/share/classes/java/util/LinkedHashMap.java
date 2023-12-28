@@ -202,7 +202,7 @@ public class LinkedHashMap<K,V>
     /**
      * HashMap.Node subclass for normal LinkedHashMap entries.
      */
-    static class Entry<K,V> extends HashMap.Node<K,V> {
+    static class Entry<K,V> extends HashMap.MapNode<K,V> {
         Entry<K,V> before, after;
         Entry(int hash, K key, V value, Node<K,V> next) {
             super(hash, key, value, next);
@@ -418,7 +418,7 @@ public class LinkedHashMap<K,V>
     void internalWriteEntries(java.io.ObjectOutputStream s) throws IOException {
         for (LinkedHashMap.Entry<K,V> e = head; e != null; e = e.after) {
             s.writeObject(e.key);
-            s.writeObject(e.value);
+            s.writeObject(e.getValue());
         }
     }
 
@@ -509,7 +509,7 @@ public class LinkedHashMap<K,V>
      */
     public boolean containsValue(Object value) {
         for (LinkedHashMap.Entry<K,V> e = head; e != null; e = e.after) {
-            V v = e.value;
+            V v = e.getValue();
             if (v == value || (value != null && value.equals(v)))
                 return true;
         }
@@ -537,7 +537,7 @@ public class LinkedHashMap<K,V>
             return null;
         if (accessOrder)
             afterNodeAccess(e);
-        return e.value;
+        return e.getValue();
     }
 
     /**
@@ -549,7 +549,7 @@ public class LinkedHashMap<K,V>
            return defaultValue;
        if (accessOrder)
            afterNodeAccess(e);
-       return e.value;
+       return e.getValue();
    }
 
     /**
@@ -681,11 +681,11 @@ public class LinkedHashMap<K,V>
         int idx = 0;
         if (reversed) {
             for (LinkedHashMap.Entry<K,V> e = tail; e != null; e = e.before) {
-                r[idx++] = e.value;
+                r[idx++] = e.getValue();
             }
         } else {
             for (LinkedHashMap.Entry<K,V> e = head; e != null; e = e.after) {
-                r[idx++] = e.value;
+                r[idx++] = e.getValue();
             }
         }
         return a;
@@ -827,27 +827,27 @@ public class LinkedHashMap<K,V>
             int mc = modCount;
             if (reversed) {
                 for (LinkedHashMap.Entry<K,V> e = tail; e != null; e = e.before)
-                    action.accept(e.value);
+                    action.accept(e.getValue());
             } else {
                 for (LinkedHashMap.Entry<K,V> e = head; e != null; e = e.after)
-                    action.accept(e.value);
+                    action.accept(e.getValue());
             }
             if (modCount != mc)
                 throw new ConcurrentModificationException();
         }
         public final void addFirst(V v) { throw new UnsupportedOperationException(); }
         public final void addLast(V v) { throw new UnsupportedOperationException(); }
-        public final V getFirst() { return nsee(reversed ? tail : head).value; }
-        public final V getLast() { return nsee(reversed ? head : tail).value; }
+        public final V getFirst() { return nsee(reversed ? tail : head).getValue(); }
+        public final V getLast() { return nsee(reversed ? head : tail).getValue(); }
         public final V removeFirst() {
             var node = nsee(reversed ? tail : head);
             removeNode(node.hash, node.key, null, false, false);
-            return node.value;
+            return node.getValue();
         }
         public final V removeLast() {
             var node = nsee(reversed ? head : tail);
             removeNode(node.hash, node.key, null, false, false);
-            return node.value;
+            return node.getValue();
         }
         public SequencedCollection<V> reversed() {
             if (reversed) {
@@ -983,7 +983,7 @@ public class LinkedHashMap<K,V>
             throw new NullPointerException();
         int mc = modCount;
         for (LinkedHashMap.Entry<K,V> e = head; e != null; e = e.after)
-            action.accept(e.key, e.value);
+            action.accept(e.key, e.getValue());
         if (modCount != mc)
             throw new ConcurrentModificationException();
     }
@@ -993,7 +993,7 @@ public class LinkedHashMap<K,V>
             throw new NullPointerException();
         int mc = modCount;
         for (LinkedHashMap.Entry<K,V> e = head; e != null; e = e.after)
-            e.value = function.apply(e.key, e.value);
+            e.setValue(function.apply(e.key, e.getValue()));
         if (modCount != mc)
             throw new ConcurrentModificationException();
     }
@@ -1172,7 +1172,7 @@ public class LinkedHashMap<K,V>
                 throw new NullPointerException();
             int mc = base.modCount;
             for (LinkedHashMap.Entry<K,V> e = base.tail; e != null; e = e.before)
-                action.accept(e.key, e.value);
+                action.accept(e.key, e.getValue());
             if (base.modCount != mc)
                 throw new ConcurrentModificationException();
         }
@@ -1182,7 +1182,7 @@ public class LinkedHashMap<K,V>
                 throw new NullPointerException();
             int mc = base.modCount;
             for (LinkedHashMap.Entry<K,V> e = base.tail; e != null; e = e.before)
-                e.value = function.apply(e.key, e.value);
+                e.setValue(function.apply(e.key, e.getValue()));
             if (base.modCount != mc)
                 throw new ConcurrentModificationException();
         }

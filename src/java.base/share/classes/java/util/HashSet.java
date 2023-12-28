@@ -91,6 +91,23 @@ public class HashSet<E>
     extends AbstractSet<E>
     implements Set<E>, Cloneable, java.io.Serializable
 {
+    class HashMapChild<E, Object> extends HashMap<E, Object> {
+        // @java.io.Serial
+        // static final long serialVersionUID = -12345678 + 1;
+        @java.io.Serial
+        private static final long serialVersionUID = 3801124242820219131L * 2;
+
+        Node<E,Object> newNode(int hash, E key, Object value, HashMap.Node<E,Object> next) {
+            // return new HashMap.MapNode<>(hash, key, value, next);
+            return new HashMap.Node<>(hash, key, next);
+        }
+
+        // // For conversion from TreeNodes to plain nodes
+        Node<E,Object> replacementNode(Node<E,Object> p, Node<E,Object> next) {
+            return new HashMap.Node<>(p.hash, p.key, next);
+        }
+    }
+
     @java.io.Serial
     static final long serialVersionUID = -5024744406713321676L;
 
@@ -104,7 +121,8 @@ public class HashSet<E>
      * default initial capacity (16) and load factor (0.75).
      */
     public HashSet() {
-        map = new HashMap<>();
+        map = new HashMapChild<>();
+        // map = new HashMap<>();
     }
 
     /**
@@ -226,7 +244,12 @@ public class HashSet<E>
      * element
      */
     public boolean add(E e) {
-        return map.put(e, PRESENT)==null;
+        if (!map.containsKey(e)) {
+            map.put(e, PRESENT);
+            return true;
+        }
+        return false;
+        // return map.put(e, PRESENT)==null;
     }
 
     /**
@@ -242,7 +265,12 @@ public class HashSet<E>
      * @return {@code true} if the set contained the specified element
      */
     public boolean remove(Object o) {
-        return map.remove(o)==PRESENT;
+        if (map.containsKey(o)) {
+            map.remove(o);
+            return true;
+        }
+        return false;
+        // return map.remove(o)==PRESENT;
     }
 
     /**
