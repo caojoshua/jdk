@@ -1028,8 +1028,10 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
     in_jvms  = in_jvms->caller();
   }
 
-  PEAState& as = youngest_jvms->alloc_state();
-  backfill_materialized(call, TypeFunc::Parms, call->req(), as, PEA());
+  if (DoPartialEscapeAnalysis) {
+    PEAState& as = youngest_jvms->alloc_state();
+    backfill_materialized(call, TypeFunc::Parms, call->req(), as, PEA());
+  }
   assert(debug_ptr == non_debug_edges, "debug info must fit exactly");
 
   // Test the correctness of JVMState::debug_xxx accessors:
@@ -1450,7 +1452,6 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
     VirtualState* vs = as.as_virtual(pea, obj);
     // The null-checked object node aliases to the same object as the original node.
     if (vs != nullptr) {
-      pea->add_alias(pea->is_alias(obj), orig_cast);
       pea->add_alias(pea->is_alias(obj), cast);
     }
   }
@@ -3161,9 +3162,8 @@ Node* GraphKit::maybe_cast_profiled_obj(Node* obj,
 
 Node* GraphKit::cast_common(Node* n, const TypeOopPtr* t, PhaseGVN *gvn) {
   Node* cast = new CheckCastPPNode(control(), n, t);
-  Node* gvn_cast = nullptr;
   if (gvn) {
-    gvn_cast = gvn->transform(cast);
+    cast = gvn->transform(cast);
   }
 
   if (DoPartialEscapeAnalysis) {
@@ -3180,13 +3180,7 @@ Node* GraphKit::cast_common(Node* n, const TypeOopPtr* t, PhaseGVN *gvn) {
       // about loops.
       // assert(vs->oop_type()->higher_equal(t), "allocation should have type higher or equal to the aliased node");
       pea->add_alias(pea->is_alias(n), cast);
-      if (gvn_cast) {
-        pea->add_alias(pea->is_alias(n), gvn_cast);
-      }
     }
-  }
-  if (gvn_cast) {
-    return gvn_cast;
   }
   return cast;
 }
@@ -4388,9 +4382,6 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
 }
 
 void GraphKit::backfill_materialized(SafePointNode* map, uint begin, uint end, PEAState& as, PartialEscapeAnalysis* pea){
-  if (pea == nullptr) {
-    return;
-  }
   bool printed = false;
 
   for (uint i = begin; i < end; ++i) {

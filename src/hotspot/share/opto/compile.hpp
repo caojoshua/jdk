@@ -786,7 +786,10 @@ private:
   bool coarsened_locks_consistent();
 
   PartialEscapeAnalysis* PEA() const {
-    assert(!DoPartialEscapeAnalysis || _pea != nullptr, "sanity check");
+    assert(!DoPartialEscapeAnalysis || _pea != nullptr ||
+               _stub_function != nullptr,
+           "if escape analysis is on, we expect PEA object to be initialized, "
+           "or we are compiling a stub function");
     return _pea;
   }
 

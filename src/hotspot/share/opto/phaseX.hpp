@@ -30,6 +30,7 @@
 #include "memory/resourceArea.hpp"
 #include "opto/memnode.hpp"
 #include "opto/node.hpp"
+#include "opto/partialEscape.hpp"
 #include "opto/phase.hpp"
 #include "opto/type.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -409,14 +410,19 @@ public:
 //------------------------------PhaseGVN---------------------------------------
 // Phase for performing local, pessimistic GVN-style optimizations.
 class PhaseGVN : public PhaseValues {
+private:
+  PEAState* _alloc_state = nullptr;
+  Node  *transform_inner( Node *n );
+
 protected:
   bool is_dominator_helper(Node *d, Node *n, bool linear_only);
 
 public:
+  void set_alloc_state(PEAState* alloc_state) { _alloc_state = alloc_state; }
   // Return a node which computes the same function as this node, but
   // in a faster or cheaper fashion.
-  Node* transform(Node* n);
-
+  Node  *transform( Node *n );
+  void   add_alias(Node* n, Node* transformed);
   virtual void record_for_igvn(Node *n) {
     C->record_for_igvn(n);
   }

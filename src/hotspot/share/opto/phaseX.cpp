@@ -671,9 +671,28 @@ Node* PhaseGVN::apply_ideal(Node* k, bool can_reshape) {
 }
 
 //------------------------------transform--------------------------------------
+// Return a node which computes the same function as this node, but in a
+// faster or cheaper fashion.
+Node *PhaseGVN::transform( Node *n ) {
+  Node* transformed = transform_inner(n);
+  add_alias(n, transformed);
+  return transformed;
+}
+
+void PhaseGVN::add_alias(Node* n, Node* transformed) {
+  if (DoPartialEscapeAnalysis && _alloc_state != nullptr) {
+    PartialEscapeAnalysis *pea = C->PEA();
+    assert(pea != nullptr, "sanity");
+    if (_alloc_state->as_virtual(pea, n)) {
+      pea->add_alias(pea->is_alias(n), transformed);
+    }
+  }
+}
+
+//------------------------------transform--------------------------------------
 // Return a node which computes the same function as this node, but
 // in a faster or cheaper fashion.
-Node* PhaseGVN::transform(Node* n) {
+Node *PhaseGVN::transform_inner(Node *n) {
   NOT_PRODUCT( set_transforms(); )
 
   // Apply the Ideal call in a loop until it no longer applies
@@ -682,6 +701,7 @@ Node* PhaseGVN::transform(Node* n) {
   NOT_PRODUCT(uint loop_count = 1;)
   while (i != nullptr) {
     assert(i->_idx >= k->_idx, "Idealize should return new nodes, use Identity to return old nodes" );
+    add_alias(k, i);
     k = i;
 #ifdef ASSERT
     if (loop_count >= K + C->live_nodes()) {

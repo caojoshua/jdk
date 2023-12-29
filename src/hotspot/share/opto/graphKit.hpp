@@ -142,6 +142,9 @@ class GraphKit : public Phase {
 
   PartialEscapeAnalysis* PEA() const { return C->PEA(); }
   void set_jvms(JVMState* jvms)       { set_map(jvms->map());
+                                        if (DoPartialEscapeAnalysis && PEA() != nullptr) {
+                                          _gvn.set_alloc_state(&jvms->alloc_state());
+                                        }
                                         assert(jvms == this->jvms(), "sanity");
                                         _sp = jvms->sp();
                                         _bci = jvms->bci();

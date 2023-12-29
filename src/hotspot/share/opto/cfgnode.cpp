@@ -2167,6 +2167,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           if (phi_type->join_speculative(TypePtr::NOTNULL) != uin_type->join_speculative(TypePtr::NOTNULL)) {
             Node* n = uin;
             if (cast != nullptr) {
+              phase->add_alias(cast, uin);
               cast = phase->transform(cast);
               n = cast;
             }
@@ -2180,6 +2181,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
         cast = ConstraintCastNode::make_cast_for_type(r, uin, phi_type, ConstraintCastNode::StrongDependency, extra_types);
       }
       assert(cast != nullptr, "cast should be set");
+      phase->add_alias(cast, uin);
       cast = phase->transform(cast);
       // set all inputs to the new cast(s) so the Phi is removed by Identity
       PhaseIterGVN* igvn = phase->is_IterGVN();

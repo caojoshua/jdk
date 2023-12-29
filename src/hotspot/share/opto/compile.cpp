@@ -931,6 +931,7 @@ Compile::Compile( ciEnv* ci_env,
     _directive(directive),
     _log(ci_env->log()),
     _failure_reason(nullptr),
+    _pea(nullptr),
     _congraph(nullptr),
     NOT_PRODUCT(_igv_printer(nullptr) COMMA)
     _unique(0),
