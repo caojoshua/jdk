@@ -705,7 +705,7 @@ Node *PhaseGVN::transform_inner(Node *n) {
     k = i;
 #ifdef ASSERT
     if (loop_count >= K + C->live_nodes()) {
-      dump_infinite_loop_info(i, "PhaseGVN::transform_no_reclaim");
+      dump_infinite_loop_info(i, "PhaseGVN::transform");
     }
 #endif
     i = apply_ideal(k, /*can_reshape=*/false);
