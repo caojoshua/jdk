@@ -84,6 +84,7 @@ public class OptimizeImplicitExceptions {
     // The following two objects are declared statically to simplify the test method.
     private static String[] string_a = new String[1];
     private static final Object o = new Object();
+    private static int fusedIfCount = 0;
 
     // This is the main test method. It will repeatedly called with the same ImplicitException 'type' to
     // JIT-compile it, deoptimized it, re-compile it again and do various checks on the way.
@@ -140,8 +141,10 @@ public class OptimizeImplicitExceptions {
                            "trapCount=" + WB.getMethodTrapCount(throwImplicitException_m) + " " +
                            "trapCount(" + impExcp.getReason() + ")=" +
                            WB.getMethodTrapCount(throwImplicitException_m, impExcp.getReason()) + " " +
+                           "fusedIfCount: " + fusedIfCount + " " +
                            "globalDeoptCount=" + WB.getDeoptCount() + " " +
-                           "globalDeoptCount(" + impExcp.getReason() + ")=" + WB.getDeoptCount(impExcp.getReason(), null));
+                           "globalDeoptCount(" + impExcp.getReason() + ")=" + WB.getDeoptCount(impExcp.getReason(), null) + " " +
+                           "globalDeoptCount(unstable_fused_if)=" + WB.getDeoptCount("unstable_fused_if", null));
         System.out.println("method compiled=" + WB.isMethodCompiled(throwImplicitException_m));
     }
 
@@ -167,17 +170,20 @@ public class OptimizeImplicitExceptions {
         // At this point, the compiled version of 'throwImplicitException()' has been invoked 'invocations' times.
         Asserts.assertEQ(WB.getMethodCompilationLevel(throwImplicitException_m), 4, "Method should be compiled at level 4.");
         int deoptCount = WB.getDeoptCount();
+        int newFusedIfCount = WB.getDeoptCount("unstable_fused_if", null/*action*/);
+        int fusedIfCountSinceLast = newFusedIfCount - fusedIfCount;
+        fusedIfCount = newFusedIfCount;
         int deoptCountReason = WB.getDeoptCount(impExcp.getReason(), null/*action*/);
         if (testMode == TestMode.OMIT_STACKTRACES_IN_FASTTHROW) {
             // No deoptimizations for '-XX:+OmitStackTraceInFastThrow'
             Asserts.assertEQ(oldDeoptCount, deoptCount, "Wrong number of deoptimizations.");
-            Asserts.assertEQ(oldDeoptCountReason.get(impExcp.getReason()), deoptCountReason, "Wrong number of deoptimizations.");
+            Asserts.assertEQ(oldDeoptCountReason.get(impExcp.getReason()), deoptCountReason + fusedIfCountSinceLast, "Wrong number of deoptimizations.");
             // '-XX:+OmitStackTraceInFastThrow' never has message because it is using a global singleton exception.
             Asserts.assertNull(ex.getMessage(), "Optimized exceptions have no message.");
         } else if (testMode == TestMode.STACKTRACES_IN_FASTTHROW) {
             // We always deoptimize for '-XX:-OmitStackTraceInFastThrow
             Asserts.assertEQ(oldDeoptCount + invocations, deoptCount, "Wrong number of deoptimizations.");
-            Asserts.assertEQ(oldDeoptCountReason.get(impExcp.getReason()) + invocations, deoptCountReason, "Wrong number of deoptimizations.");
+            Asserts.assertEQ(oldDeoptCountReason.get(impExcp.getReason()) + invocations, deoptCountReason + fusedIfCountSinceLast, "Wrong number of deoptimizations.");
             Asserts.assertNotNull(ex.getMessage(), "Exceptions thrown in the interpreter should have a message.");
         } else {
             Asserts.fail("Unknown test mode.");

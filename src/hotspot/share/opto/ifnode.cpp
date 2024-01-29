@@ -1078,7 +1078,6 @@ bool IfNode::fold_compares_helper(ProjNode* proj, ProjNode* success, ProjNode* f
 // a single region that branches to the uncommon trap for the
 // dominating If
 Node* IfNode::merge_uncommon_traps(ProjNode* proj, ProjNode* success, ProjNode* fail, PhaseIterGVN* igvn) {
-  Node* res = this;
   assert(success->in(0) == this, "bad projection");
 
   ProjNode* otherproj = proj->other_if_proj();
@@ -1086,25 +1085,45 @@ Node* IfNode::merge_uncommon_traps(ProjNode* proj, ProjNode* success, ProjNode* 
   CallStaticJavaNode* unc = success->is_uncommon_trap_proj();
   CallStaticJavaNode* dom_unc = otherproj->is_uncommon_trap_proj();
 
-  if (unc != dom_unc) {
-    Node* r = new RegionNode(3);
-
-    r->set_req(1, otherproj);
-    r->set_req(2, success);
-    r = igvn->transform(r);
-    assert(r->is_Region(), "can't go away");
-
-    // Make both If trap at the state of the first If: once the CmpI
-    // nodes are merged, if we trap we don't know which of the CmpI
-    // nodes would have caused the trap so we have to restart
-    // execution at the first one
-    igvn->replace_input_of(dom_unc, 0, r);
-    igvn->replace_input_of(unc, 0, igvn->C->top());
-  }
   int trap_request = dom_unc->uncommon_trap_request();
-  Deoptimization::DeoptReason reason = Deoptimization::trap_request_reason(trap_request);
-  Deoptimization::DeoptAction action = Deoptimization::trap_request_action(trap_request);
+  int this_trap_request = unc->uncommon_trap_request();
+  Deoptimization::DeoptReason reason =
+      Deoptimization::trap_request_reason(trap_request);
+  if (reason == Deoptimization::Reason_null_check ||
+      Deoptimization::trap_request_reason(this_trap_request) ==
+          Deoptimization::Reason_null_check) {
+    // We cannot merge null checks. If we try to merge
+    // `if (obj != null && obj.field == 0)`, and we trap because of obj.field,
+    // we will branch to the trap region for the null check. `obj` in that
+    // region is narrowed to exactly null, but in our execution state `obj`
+    // should not be null.
+    return nullptr;
+  }
 
+  if (unc == dom_unc) {
+    return nullptr;
+  }
+
+  Node* region = new RegionNode(3);
+
+  region->set_req(1, otherproj);
+  region->set_req(2, success);
+  region = igvn->transform(region);
+  assert(region->is_Region(), "can't go away");
+
+  // Make both If trap at the state of the first If: once the CmpI
+  // nodes are merged, if we trap we don't know which of the CmpI
+  // nodes would have caused the trap so we have to restart
+  // execution at the first one
+  igvn->replace_input_of(dom_unc, 0, region);
+  igvn->replace_input_of(unc, 0, igvn->C->top());
+
+  // Take the action that invalides the least
+  Deoptimization::DeoptAction action =
+      MIN2(Deoptimization::trap_request_action(trap_request),
+           Deoptimization::trap_request_action(this_trap_request));
+
+  Node* res = this;
   int flip_test = 0;
   Node* l = nullptr;
   Node* r = nullptr;
@@ -1309,6 +1328,36 @@ void IfNode::reroute_side_effect_free_unc(ProjNode* proj, ProjNode* dom_proj, Ph
   igvn->C->root()->add_req(halt);
 }
 
+Node* IfNode::fold_uncommon_traps(PhaseIterGVN* igvn) {
+  if (Opcode() == Op_ParsePredicate || !in(1)->isa_Bool())
+    return nullptr;
+  Node* ctrl = in(0);
+  if (ctrl->outcnt() > 1) {
+    // Cannot fold with previous IfNode if there are side effects in between.
+    return nullptr;
+  }
+
+  ProjNode* dom_proj = ctrl->isa_Proj();
+  if (!dom_proj) {
+    return nullptr;
+  }
+  IfNode* dom_if = ctrl->in(0)->isa_If();
+  if (dom_if == nullptr || dom_if->Opcode() == Op_ParsePredicate ||
+      !dom_if->in(1)->is_Bool() || dom_if->outcnt() != 2) {
+    return nullptr;
+  }
+  ProjNode* success = nullptr;
+  ProjNode* fail = nullptr;
+  if (has_only_uncommon_traps(dom_proj, success, fail, igvn)) {
+    Node* transformed = merge_uncommon_traps(dom_proj, success, fail, igvn);
+    if (transformed != nullptr) {
+      return transformed;
+    }
+  }
+
+  return nullptr;
+}
+
 Node* IfNode::fold_compares(PhaseIterGVN* igvn) {
   if (Opcode() != Op_If) return nullptr;
 
@@ -1328,7 +1377,7 @@ Node* IfNode::fold_compares(PhaseIterGVN* igvn) {
       if (has_only_uncommon_traps(dom_cmp, success, fail, igvn) &&
           // Next call modifies graph so must be last
           fold_compares_helper(dom_cmp, success, fail, igvn)) {
-        return merge_uncommon_traps(dom_cmp, success, fail, igvn);
+        return this;
       }
       return nullptr;
     } else if (ctrl->in(0) != nullptr &&
@@ -1347,7 +1396,11 @@ Node* IfNode::fold_compares(PhaseIterGVN* igvn) {
           // Next call modifies graph so must be last
           fold_compares_helper(dom_cmp, success, fail, igvn)) {
         reroute_side_effect_free_unc(other_cmp, dom_cmp, igvn);
-        return merge_uncommon_traps(dom_cmp, success, fail, igvn);
+        Node *transformed = merge_uncommon_traps(dom_cmp, success, fail, igvn);
+        if (transformed == nullptr) {
+          return this;
+        }
+        return transformed;
       }
     }
   }
@@ -1472,7 +1525,12 @@ Node* IfNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (in(0) == nullptr) return nullptr;     // Dead loop?
 
   PhaseIterGVN* igvn = phase->is_IterGVN();
-  Node* result = fold_compares(igvn);
+  Node* result = fold_uncommon_traps(igvn);
+  if (result != nullptr) {
+    return result;
+  }
+
+  result = fold_compares(igvn);
   if (result != nullptr) {
     return result;
   }

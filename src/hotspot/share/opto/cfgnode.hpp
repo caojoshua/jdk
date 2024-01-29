@@ -428,6 +428,7 @@ public:
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual int required_outcnt() const { return 2; }
   virtual const RegMask &out_RegMask() const;
+  Node* fold_uncommon_traps(PhaseIterGVN* phase);
   Node* fold_compares(PhaseIterGVN* phase);
   static Node* up_one_dom(Node* curr, bool linear_only = false);
   bool is_zero_trip_guard() const;
