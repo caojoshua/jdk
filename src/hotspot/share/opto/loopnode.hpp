@@ -1354,7 +1354,7 @@ public:
 
   // Construct a range check for a predicate if
   BoolNode* rc_predicate(IdealLoopTree* loop, Node* ctrl, int scale, Node* offset, Node* init, Node* limit,
-                         jint stride, Node* range, bool upper, bool& overflow);
+                         jint stride, Node* range, bool upper, bool& overflow, bool assertion = false);
 
   // Implementation of the loop predication to promote checks outside the loop
   bool loop_predication_impl(IdealLoopTree *loop);

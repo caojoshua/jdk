@@ -783,7 +783,7 @@ bool IdealLoopTree::is_range_check_if(IfProjNode* if_success_proj, PhaseIdealLoo
 // (2) stride*scale < 0
 //   max(scale*i + offset) = scale*init + offset
 BoolNode* PhaseIdealLoop::rc_predicate(IdealLoopTree* loop, Node* ctrl, int scale, Node* offset, Node* init,
-                                       Node* limit, jint stride, Node* range, bool upper, bool& overflow) {
+                                       Node* limit, jint stride, Node* range, bool upper, bool& overflow, bool assertion) {
   jint con_limit  = (limit != nullptr && limit->is_Con())  ? limit->get_int()  : 0;
   jint con_init   = init->is_Con()   ? init->get_int()   : 0;
   jint con_offset = offset->is_Con() ? offset->get_int() : 0;
@@ -902,14 +902,24 @@ BoolNode* PhaseIdealLoop::rc_predicate(IdealLoopTree* loop, Node* ctrl, int scal
     register_new_node(max_idx_expr, ctrl);
   }
 
+  Node* bound = nullptr;
+  if (upper || assertion) {
+    // We run into 2 compiler assertions if skeleton predicates use the more
+    // aggressive lower bounds checks. Not sure why yet.
+    bound = range;
+  } else {
+    bound = new ConINode(TypeInt::MIN);
+    register_new_node(bound, ctrl);
+  }
+
   CmpNode* cmp = nullptr;
   if (overflow) {
     // Integer expressions may overflow, do long comparison
-    range = new ConvI2LNode(range);
-    register_new_node(range, ctrl);
-    cmp = new CmpULNode(max_idx_expr, range);
+    bound = new ConvI2LNode(bound);
+    register_new_node(bound, ctrl);
+    cmp = new CmpULNode(max_idx_expr, bound);
   } else {
-    cmp = new CmpUNode(max_idx_expr, range);
+    cmp = new CmpUNode(max_idx_expr, bound);
   }
   register_new_node(cmp, ctrl);
   BoolNode* bol = new BoolNode(cmp, BoolTest::lt);
@@ -1320,7 +1330,7 @@ IfProjNode* PhaseIdealLoop::add_template_assertion_predicate(IfNode* iff, IdealL
   register_new_node(opaque_init, upper_bound_proj);
   bool negate = (if_proj->_con != parse_predicate_proj->_con);
   BoolNode* bol = rc_predicate(loop, upper_bound_proj, scale, offset, opaque_init, limit, stride, rng,
-                               (stride > 0) != (scale > 0), overflow);
+                               (stride > 0) != (scale > 0), overflow, true);
   Node* opaque_bol = new Opaque4Node(C, bol, _igvn.intcon(1)); // This will go away once loop opts are over
   C->add_template_assertion_predicate_opaq(opaque_bol);
   register_new_node(opaque_bol, upper_bound_proj);
@@ -1343,7 +1353,7 @@ IfProjNode* PhaseIdealLoop::add_template_assertion_predicate(IfNode* iff, IdealL
   register_new_node(max_value, parse_predicate_proj);
 
   bol = rc_predicate(loop, new_proj, scale, offset, max_value, limit, stride, rng, (stride > 0) != (scale > 0),
-                     overflow);
+                     overflow, true);
   opaque_bol = new Opaque4Node(C, bol, _igvn.intcon(1));
   C->add_template_assertion_predicate_opaq(opaque_bol);
   register_new_node(opaque_bol, new_proj);
