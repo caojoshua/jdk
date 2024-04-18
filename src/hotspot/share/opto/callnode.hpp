@@ -433,6 +433,9 @@ public:
     return in(TypeFunc::Memory)->as_MergeMem();
   }
 
+  // Returns the receiver, or nullptr if there is no receiver.
+  Node* receiver() const;
+
   // The parser marks useless maps as dead when it's done with them:
   bool is_killed() { return in(TypeFunc::Control) == nullptr; }
 

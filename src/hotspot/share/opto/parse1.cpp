@@ -985,7 +985,11 @@ void Parse::do_exits() {
   _exits.set_i_o(gvn().transform(iophi));
 
   // Figure out if we need to emit the trailing barrier. The barrier is only
-  // needed in the constructors, and only in three cases:
+  // needed at the end of object construction. We only need to emit a barrier
+  // for the outermost constructor in a chain of superclass constructors for the
+  // same object. We know this method and the parent method are constructors for
+  // the same object if they are both initializers with the same receiver. The
+  // barrier is needed in three cases:
   //
   // 1. The constructor wrote a final. The effects of all initializations
   //    must be committed to memory before any code after the constructor
@@ -1011,12 +1015,16 @@ void Parse::do_exits() {
   // normal return from the constructor.  We do not attempt to detect
   // such unusual early publications.  But no barrier is needed on
   // exceptional returns, since they cannot publish normally.
-  //
+  // TODO: need to record in parent that we wrote finals...
+  JVMState *caller_state = caller();
   if (method()->is_initializer() &&
-       (wrote_final() ||
-         (AlwaysSafeConstructors && wrote_fields()) ||
-         (support_IRIW_for_not_multiple_copy_atomic_cpu && wrote_volatile()))) {
-    _exits.insert_mem_bar(UseStoreStoreForCtor ? Op_MemBarStoreStore : Op_MemBarRelease,
+      (!caller_state->has_method() ||
+       !caller_state->method()->is_initializer() ||
+       map()->receiver() != caller_state->map()->receiver()) &&
+      (wrote_final() || (AlwaysSafeConstructors && wrote_fields()) ||
+       (support_IRIW_for_not_multiple_copy_atomic_cpu && wrote_volatile()))) {
+    _exits.insert_mem_bar(UseStoreStoreForCtor ? Op_MemBarStoreStore
+                                               : Op_MemBarRelease,
                           alloc_with_final());
 
     // If Memory barrier is created for final fields write

@@ -67,13 +67,15 @@ class ParseGenerator : public InlineCallGenerator {
 private:
   bool  _is_osr;
   float _expected_uses;
+  Parse* _prev_parse;
 
 public:
-  ParseGenerator(ciMethod* method, float expected_uses, bool is_osr = false)
+  ParseGenerator(ciMethod* method, float expected_uses, Parse* prev_parse = nullptr, bool is_osr = false)
     : InlineCallGenerator(method)
   {
     _is_osr        = is_osr;
     _expected_uses = expected_uses;
+    _prev_parse = prev_parse;
     assert(InlineTree::check_can_parse(method) == nullptr, "parse must be possible");
   }
 
@@ -97,6 +99,7 @@ JVMState* ParseGenerator::generate(JVMState* jvms) {
   }
 
   Parse parser(jvms, method(), _expected_uses);
+  // pass in parser and propagate wrote flags here
   if (C->failing()) return nullptr;
 
   // Grab signature for matching/allocation
@@ -301,7 +304,7 @@ CallGenerator* CallGenerator::for_osr(ciMethod* m, int osr_bci) {
   if (InlineTree::check_can_parse(m) != nullptr)  return nullptr;
   float past_uses = m->interpreter_invocation_count();
   float expected_uses = past_uses;
-  return new ParseGenerator(m, expected_uses, true);
+  return new ParseGenerator(m, expected_uses, nullptr, true);
 }
 
 CallGenerator* CallGenerator::for_direct_call(ciMethod* m, bool separate_io_proj) {

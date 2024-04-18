@@ -1286,6 +1286,16 @@ bool SafePointNode::cmp( const Node &n ) const {
   return (&n == this);          // Always fail except on self
 }
 
+Node* SafePointNode::receiver() const {
+  JVMState* caller = jvms()->caller();
+  if (caller == nullptr || jvms()->method()->is_static() ||
+      jvms()->method()->holder() == nullptr) {
+    return nullptr;
+  }
+  // The caller state contains the arguments passed into this method
+  return caller->map()->argument(caller, 0);
+}
+
 //-------------------------set_next_exception----------------------------------
 void SafePointNode::set_next_exception(SafePointNode* n) {
   assert(n == nullptr || n->Opcode() == Op_SafePoint, "correct value for next_exception");
